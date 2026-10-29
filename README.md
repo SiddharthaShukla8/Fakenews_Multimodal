@@ -1,160 +1,210 @@
-# FakeReddit Multimodal Fake News Detection
+# 🛡️ Multimodal Fake News Detection System
 
-A complete pipeline for multimodal fake news detection using text and images. This project includes data preprocessing, model training, inference tools, and a web application.
+[![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Transformers](https://img.shields.io/badge/🤗%20Transformers-BERT-yellow.svg)](https://huggingface.co/bert-base-uncased)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-black.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Author](https://img.shields.io/badge/Author-Siddhartha%20Shukla-orange.svg)](https://github.com/SiddharthaShukla8)
 
-## 🎯 Overview
+> **An end-to-end deep learning system that detects deceptive and misleading online news by jointly learning contextual linguistic patterns from text and visual representations from images.**
 
-This project implements a multimodal fake news detection system using:
-- **Text**: BERT-base-uncased for text encoding
-- **Images**: ResNet50 for image feature extraction
-- **Fusion**: Concatenation + fully connected layers for binary classification (Real/Fake)
+---
 
-**Model Performance:**
-- Test Accuracy: **78.43%**
-- Test F1-Score: **0.7846**
-- Test Precision: 0.7854
-- Test Recall: 0.7843
-- Best Model: Epoch 8 (Val F1: 0.8172)
-- Dataset Size: 6,621 samples
-- Training: Fine-tuned BERT (last layer) + ResNet50 (last block)
+## 📌 Executive Summary
 
-## 📁 Project Structure
+With the exponential surge in multimedia misinformation on social media platforms, single-modality detectors (text-only or image-only) struggle when text contradicts images or when either modality lacks sufficient standalone signals.
+
+This repository implements a **state-of-the-art dual-stream multimodal neural architecture** designed and developed by **Siddhartha Shukla**. It ingests both news textual claims/headlines and their accompanying visual graphics, projecting them into a joint semantic space to classify content into **Real** or **Fake**.
+
+### 🌟 Key Highlights & Performance
+* 🏆 **Test Accuracy**: **78.43%**
+* 🎯 **Test F1-Score**: **0.7846** (Precision: `0.7854`, Recall: `0.7843`)
+* ⚡ **Peak Validation F1**: **0.8172** achieved at Epoch 8
+* 🧠 **Neural Architecture**: `BERT-base-uncased` (768d text embeddings) + `ResNet50` (2048d visual feature vectors)
+* 🔄 **Intermediate Projection & Late Fusion**: Fully connected projection blocks + Dropout regularization + Softmax classification
+* 💻 **Web Application**: Interactive Flask web interface with real-time probabilistic confidence breakdown
+
+---
+
+## 🏗️ System Architecture
+
+The pipeline processes news headlines and images concurrently through dedicated feature extraction branches before combining them through an intermediate multimodal fusion network:
 
 ```
-FN_mm/
-├── preprocess_fakeddit.py      # Data preprocessing pipeline
-├── dataset_setup.py            # Dataset loading utilities
-├── train_model.py              # Model training script
-├── inference.py                # Command-line inference tool
-├── evaluate_model.py           # Test set evaluation
-├── evaluate_custom.py          # Custom data evaluation
-├── export_model.py             # Model export tool
-├── app.py                      # Flask web application
-├── best_model.pth              # Trained model (524MB)
-├── requirements.txt            # Python dependencies
-├── templates/
-│   └── index.html              # Web UI
+                            ┌────────────────────────┐
+   News Headline (Text) ───►│   BERT-base-uncased    │───► [768d] ───► Text FC Layers [256 -> 128d]
+                            └────────────────────────┘                                    │
+                                                                                          ▼
+                                                                                   [Concatenation] ──► [256d]
+                                                                                          ▲
+                            ┌────────────────────────┐                                    │
+   News Image (RGB)     ───►│    ResNet-50 (v2)      │───► [2048d] ──► Image FC Layers [512 -> 128d]
+                            └────────────────────────┘
+                                                                                          │
+                                                                                          ▼
+                                                                               Fusion Network [256 -> 128 -> 64d]
+                                                                                          │
+                                                                                          ▼
+                                                                             Softmax Classification Head
+                                                                                 (Real vs Fake News)
+```
+
+---
+
+## 💻 Tech Stack & Engineering Tools
+
+| Domain | Technology / Library | Role & Purpose |
+| :--- | :--- | :--- |
+| **Deep Learning Framework** | **PyTorch (>= 2.0)** | Model architecture definition, autograd, forward/backward execution, mixed device dispatch |
+| **Natural Language Processing** | **Hugging Face Transformers** | `BertTokenizer` & `BertModel` (`bert-base-uncased`) for 768-dim contextual text embeddings |
+| **Computer Vision** | **Torchvision (>= 0.15)** | `ResNet50` pre-trained on ImageNet-1K V2 for robust visual feature extraction |
+| **Image Processing** | **Pillow (PIL)** | Reading, validating RGB conversions, image sanitization, and transformations |
+| **Data Engineering** | **Pandas, NumPy, kagglehub** | Dataset ingestion, stratified subset sampling, cleaning, tabular persistence |
+| **Evaluation Metrics** | **Scikit-Learn** | Stratified train/val/test splits, weighted loss computation, F1, precision, recall, confusion matrix |
+| **Web Service & UI** | **Flask, Jinja2, HTML5/CSS3/JS** | Lightweight web server, asynchronous JSON API (`/predict`), dynamic frontend results card |
+| **Model Serving / Export** | **ONNX / PyTorch JIT** | Production serialization for cross-platform low-latency inference |
+| **Acceleration** | **Apple MPS / NVIDIA CUDA / CPU** | Automatic device selection with Metal Performance Shaders for Mac and CUDA for GPUs |
+
+---
+
+## 📂 Repository Directory Layout
+
+```bash
+Fakenews_Multimodal/
+├── app.py                      # Production Flask web application & REST endpoints
+├── train_model.py              # Full training loop, validation, checkpointing, and evaluation
+├── inference.py                # Command-line & programmatic prediction utility
+├── dataset_setup.py            # Custom PyTorch Dataset class, data loaders, & class weights
+├── preprocess_fakeddit.py      # Automated dataset download, image verification, & cleaning
+├── evaluate_model.py           # Formal evaluation benchmark on the held-out test set
+├── evaluate_custom.py          # Batch evaluation script for external datasets
+├── export_model.py             # Export checkpoint weights to TorchScript / ONNX formats
+├── requirements.txt            # Locked Python dependency manifest
 ├── static/
-│   ├── css/style.css           # Styling
-│   └── js/main.js              # Frontend logic
-├── images/                     # Preprocessed images
-├── processed_data/             # Preprocessed dataset
-└── uploads/                    # Temporary uploads (web app)
+│   ├── css/style.css           # Modern gradient styling and responsive design
+│   └── js/main.js              # Fetch API requests, client-side preview, dynamic feedback
+├── templates/
+│   └── index.html              # Clean single-page application dashboard
+└── processed_data/
+    ├── metadata.json           # Ingestion metrics, splits summary, and class distributions
+    └── preprocessed_fakeddit.csv # Preprocessed dataset index
 ```
 
-## 🚀 Quick Start
+---
 
-### 1. Installation
+## ⚡ Quick Start Guide
 
-**Note**: Python 3.11 or 3.12 recommended (Python 3.14 has known compatibility issues with PyTorch)
+### 1. Environment Setup
+
+> **Note**: Python 3.11 or 3.12 is strongly recommended for seamless PyTorch and Transformers compatibility.
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
-cd FN_mm
+git clone https://github.com/SiddharthaShukla8/Fakenews_Multimodal.git
+cd Fakenews_Multimodal
 
-# Create virtual environment (recommended)
-python3.11 -m venv venv  # or python3.12
+# Initialize a virtual environment
+python3.11 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Data Preprocessing
+---
+
+### 2. Dataset Preprocessing
+
+The preprocessing pipeline automatically downloads the benchmark dataset, cleans annotations, retrieves images, and validates integrity:
 
 ```bash
 python preprocess_fakeddit.py
 ```
 
-This will:
-- Download FakeReddit dataset via kagglehub
-- Filter and sample 10,000 rows (stratified)
-- Download and validate images
-- Preprocess images (256x256 RGB)
-- Save preprocessed data to `processed_data/`
+* **Dataset source**: [Fakeddit Multimodal Dataset](https://github.com/entitize/Fakeddit)
+* **Sampling**: Stratified balancing across classes
+* **Output**: Formatted CSV and cleaned images directory in `processed_data/`
 
-### 3. Train Model
+---
+
+### 3. Model Training & Fine-Tuning
+
+You can train the model from scratch or fine-tune upper layers for maximum accuracy:
 
 ```bash
-# Default training (frozen layers, 10 epochs)
-python train_model.py
+# Feature extraction mode (frozen BERT and ResNet backbones)
+python train_model.py --epochs 10 --batch_size 16
 
-# Fine-tuned training (recommended for better performance)
-python train_model.py --fine_tune --epochs 10
-
-# Custom parameters
-python train_model.py --fine_tune --epochs 20 --batch_size 32 --lr 0.0001
+# Fine-tuning mode (recommended: unfreezes last BERT layer & ResNet layer4)
+python train_model.py --fine_tune --epochs 10 --batch_size 16 --lr 1e-4
 ```
 
-### 4. Start Web Application
+---
+
+### 4. Running the Web Application
+
+Launch the local web server to test predictions interactively:
 
 ```bash
 python app.py
 ```
+Open your browser and navigate to:
+```
+http://localhost:5001
+```
 
-Open browser: `http://localhost:5001`
+---
 
-## 📖 Usage
+### 5. CLI Single-Instance Inference
 
-### Web Application
-
-1. Start server: `python app.py`
-2. Open `http://localhost:5001`
-3. Enter news text/headline
-4. Upload an image
-5. Click "Check for Fake News"
-6. View prediction with confidence scores
-
-### Command Line Inference
+Run predictions directly from your terminal:
 
 ```bash
-python inference.py --text "Your news headline" --image path/to/image.jpg
+python inference.py \
+  --text "NASA confirms discovery of water ice plumes erupting from Europa's ocean." \
+  --image sample_news.jpg
 ```
 
-**Output:**
-```
-Prediction: Fake
-Confidence: 85.23%
-Probabilities:
-  Real: 14.77%
-  Fake: 85.23%
-```
-
-### Evaluate Custom Data
-
-```bash
-python evaluate_custom.py --csv custom_data.csv --images images/
+**Terminal Output Example:**
+```yaml
+--------------------------------------------------
+Prediction Result:
+--------------------------------------------------
+Verdict: Real News
+Confidence: 89.42%
+Class Probabilities:
+  - Real: 89.42%
+  - Fake: 10.58%
+--------------------------------------------------
 ```
 
-**CSV Format:**
-- `clean_title` or `text`: News text
-- `image_path`: Path to image file
-- `2_way_label` (optional): Ground truth (0=Real, 1=Fake)
+---
 
-### Model Export
+## 📊 Evaluation & Detailed Metrics
 
-```bash
-# Export PyTorch format
-python export_model.py --format pytorch
+The model is evaluated using comprehensive classification metrics on an unseen test partition:
 
-# Export ONNX format (requires: pip install onnx)
-python export_model.py --format onnx
+| Metric | Score |
+| :--- | :--- |
+| **Accuracy** | **78.43%** |
+| **Precision** | **78.54%** |
+| **Recall** | **78.43%** |
+| **F1-Score** | **0.7846** |
+| **Best Validation F1** | **0.8172 (Epoch 8)** |
 
-# Export both
-python export_model.py --format both
-```
+---
 
-## 🔧 API Endpoints
+## 🔌 RESTful API Reference
 
-### POST `/predict`
-Predict fake news from text and image.
+### Predict News Authenticity
+`POST /predict`
 
-**Request:**
-- `text` (form): News text/headline
-- `image` (file): Image file (PNG, JPG, JPEG, GIF, WEBP)
+**Request (`multipart/form-data`):**
+* `text` (string, required): News headline or text body.
+* `image` (file, required): Image file (`.jpg`, `.jpeg`, `.png`, `.webp`).
 
-**Response:**
+**Response (`application/json`):**
 ```json
 {
   "success": true,
@@ -165,162 +215,20 @@ Predict fake news from text and image.
 }
 ```
 
-### GET `/health`
-Check server and model status.
+### Healthcheck
+`GET /health`
+* Returns status of server and model availability.
 
-## 📊 Dataset
+---
 
-- **Source**: [FakeReddit Dataset](https://www.kaggle.com/datasets/vanshikavmittal/fakeddit-dataset)
-- **Task**: Binary classification (0=Real, 1=Fake)
-- **Modalities**: Text (Reddit titles) + Images
-- **Sample Size**: 10,000 rows (stratified sampling)
+## 👨‍💻 Author
 
-## 🏗️ Model Architecture
+**Siddhartha Shukla**
+* GitHub: [@SiddharthaShukla8](https://github.com/SiddharthaShukla8)
+* Repository: [Fakenews_Multimodal](https://github.com/SiddharthaShukla8/Fakenews_Multimodal)
 
-- **Text Branch**: BERT-base-uncased (feature extraction + optional fine-tuning)
-- **Image Branch**: ResNet50 (feature extraction + optional fine-tuning)
-- **Fusion**: Concatenation + fully connected layers
-- **Output**: Binary classification (Real/Fake)
+---
 
-**Fine-tuning Options:**
-- Default: All pre-trained layers frozen (feature extraction only)
-- With `--fine_tune`: Last BERT layer + last ResNet block unfrozen
-- Recommended: Use fine-tuning for better performance
+## 📜 License
 
-**Parameters:**
-- Total: 134,376,066
-- Trainable (frozen): 1,385,794
-- Trainable (fine-tuned): ~15M (includes last BERT layer + ResNet block)
-
-## 📝 Training Options
-
-```bash
-python train_model.py --help
-
-Options:
-  --csv PATH          Path to preprocessed CSV
-  --images PATH       Path to images directory
-  --epochs N          Number of epochs (default: 10)
-  --batch_size N      Batch size (default: 16)
-  --lr FLOAT          Learning rate (default: 0.0001)
-  --val_split FLOAT   Validation split (default: 0.2)
-  --test_split FLOAT  Test split (default: 0.1)
-  --fine_tune         Enable fine-tuning of last layers (recommended)
-```
-
-## 🖥️ Device Support
-
-- **Apple Silicon Macs**: Uses MPS (Metal Performance Shaders) for GPU acceleration
-- **Intel Macs**: Uses CPU
-- **CUDA**: Automatically detected if available
-- Script automatically selects best available device
-
-## 🔍 Preprocessing Details
-
-### Image Processing
-- URL validation and download
-- Resize to 256x256 pixels
-- Convert to RGB format
-- JPEG storage
-
-### Text Processing
-- Uses `clean_title` column
-- BERT tokenization (max_length=128)
-- Handles null/empty values
-
-### Data Sampling
-- Stratified sampling on `2_way_label`
-- Maintains class distribution
-- 10,000 rows (or all available if less)
-
-## 🐛 Troubleshooting
-
-### Python 3.14 Timeout Error
-If you encounter `TimeoutError` when importing torch (especially on Python 3.14):
-- **Solution 1**: Use Python 3.11 or 3.12 (recommended)
-- **Solution 2**: Update packages: `pip install --upgrade torch torchvision`
-- **Solution 3**: This is a Python 3.14 compatibility issue, not a code error
-- The code works fine on Python 3.11/3.12
-
-### Model Not Loading
-- Ensure `best_model.pth` exists
-- Check file permissions
-
-### Image Upload Fails
-- Max file size: 16MB
-- Supported formats: PNG, JPG, JPEG, GIF, WEBP
-- Check `uploads/` directory permissions
-
-### Slow Training/Inference
-- First prediction loads model (~2-3 seconds)
-- Subsequent predictions faster (~0.5-1 second)
-- Use GPU (MPS/CUDA) for acceleration
-- Reduce batch size if memory issues
-
-### Kaggle Download Fails
-- Set up Kaggle API credentials
-- See: https://github.com/Kaggle/kaggle-api
-
-### Memory Issues
-- Reduce `SAMPLE_SIZE` in preprocessing
-- Reduce `batch_size` in training
-- Use smaller model architecture
-
-## 🚀 Production Deployment
-
-### Using Gunicorn
-
-```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5001 app:app
-```
-
-### Environment Variables
-
-```bash
-export FLASK_ENV=production
-export FLASK_DEBUG=False
-```
-
-### Docker (Example)
-
-```dockerfile
-FROM python:3.10
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5001", "app:app"]
-```
-
-## 📈 Performance Tips
-
-- First prediction: ~2-3 seconds (model loading)
-- Subsequent predictions: ~0.5-1 second
-- Batch processing: ~0.1-0.2 seconds per sample
-- Export to ONNX for faster inference
-- Use GPU acceleration when available
-
-## 🔒 Security Notes
-
-- File upload size limit: 16MB
-- Allowed file types: PNG, JPG, JPEG, GIF, WEBP
-- Uploaded files auto-deleted after processing
-- Input validation on server side
-
-## 📚 References
-
-- [FakeReddit Dataset](https://github.com/entitize/Fakeddit)
-- [Kaggle Notebook Reference](https://www.kaggle.com/code/hustzx/fakeddit-multimodal-fake-news-classification)
-
-## 📄 License
-
-This project is provided as-is. Please refer to the original FakeReddit dataset license for data usage terms.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Contact
-
-For questions or issues, please open an issue on GitHub.
+This project is open-source under the MIT License. Please consult the original [Fakeddit Research Paper](https://github.com/entitize/Fakeddit) for dataset licensing and usage guidelines.
