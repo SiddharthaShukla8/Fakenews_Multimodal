@@ -10,9 +10,13 @@ This project implements a multimodal fake news detection system using:
 - **Fusion**: Concatenation + fully connected layers for binary classification (Real/Fake)
 
 **Model Performance:**
-- Test Accuracy: 71.79%
-- Test F1-Score: 0.7089
-- Best Model: Epoch 2 (Val F1: 0.7181)
+- Test Accuracy: **78.43%**
+- Test F1-Score: **0.7846**
+- Test Precision: 0.7854
+- Test Recall: 0.7843
+- Best Model: Epoch 8 (Val F1: 0.8172)
+- Dataset Size: 6,621 samples
+- Training: Fine-tuned BERT (last layer) + ResNet50 (last block)
 
 ## 📁 Project Structure
 
@@ -73,11 +77,14 @@ This will:
 ### 3. Train Model
 
 ```bash
-# Default training (10 epochs)
+# Default training (frozen layers, 10 epochs)
 python train_model.py
 
+# Fine-tuned training (recommended for better performance)
+python train_model.py --fine_tune --epochs 10
+
 # Custom parameters
-python train_model.py --epochs 20 --batch_size 32 --lr 0.0001
+python train_model.py --fine_tune --epochs 20 --batch_size 32 --lr 0.0001
 ```
 
 ### 4. Start Web Application
@@ -170,14 +177,20 @@ Check server and model status.
 
 ## 🏗️ Model Architecture
 
-- **Text Branch**: BERT-base-uncased (frozen, feature extraction)
-- **Image Branch**: ResNet50 (frozen, feature extraction)
+- **Text Branch**: BERT-base-uncased (feature extraction + optional fine-tuning)
+- **Image Branch**: ResNet50 (feature extraction + optional fine-tuning)
 - **Fusion**: Concatenation + fully connected layers
 - **Output**: Binary classification (Real/Fake)
 
+**Fine-tuning Options:**
+- Default: All pre-trained layers frozen (feature extraction only)
+- With `--fine_tune`: Last BERT layer + last ResNet block unfrozen
+- Recommended: Use fine-tuning for better performance
+
 **Parameters:**
 - Total: 134,376,066
-- Trainable: 1,385,794
+- Trainable (frozen): 1,385,794
+- Trainable (fine-tuned): ~15M (includes last BERT layer + ResNet block)
 
 ## 📝 Training Options
 
@@ -192,6 +205,7 @@ Options:
   --lr FLOAT          Learning rate (default: 0.0001)
   --val_split FLOAT   Validation split (default: 0.2)
   --test_split FLOAT  Test split (default: 0.1)
+  --fine_tune         Enable fine-tuning of last layers (recommended)
 ```
 
 ## 🖥️ Device Support
@@ -211,7 +225,7 @@ Options:
 
 ### Text Processing
 - Uses `clean_title` column
-- BERT tokenization (max_length=80)
+- BERT tokenization (max_length=128)
 - Handles null/empty values
 
 ### Data Sampling

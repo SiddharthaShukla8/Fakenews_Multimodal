@@ -109,7 +109,7 @@ def preprocess_image(image_path, device):
         raise ValueError(f"Failed to load image: {e}")
 
 
-def preprocess_text(text, device, max_length=80):
+def preprocess_text(text, device, max_length=128):
     """Preprocess text for model input."""
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     

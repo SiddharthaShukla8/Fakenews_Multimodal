@@ -8,6 +8,8 @@ venv/
 env/
 ENV/
 .venv
+venvpp/
+
 
 # Model files
 *.pth

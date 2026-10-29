@@ -34,14 +34,22 @@ class MultimodalFakeNewsClassifier(nn.Module):
     Multimodal classifier combining BERT for text and ResNet50 for images.
     """
     
-    def __init__(self, num_classes=2, dropout=0.3):
+    def __init__(self, num_classes=2, dropout=0.3, fine_tune=False):
         super().__init__()
         
         # Text branch (BERT)
         self.bert = BertModel.from_pretrained('bert-base-uncased')
-        # Freeze BERT layers (optional - set to False to fine-tune)
-        for param in self.bert.parameters():
-            param.requires_grad = False
+        
+        if fine_tune:
+            # Unfreeze last layer of BERT
+            for param in self.bert.parameters():
+                param.requires_grad = False
+            for param in self.bert.encoder.layer[-1].parameters():
+                param.requires_grad = True
+        else:
+            # Freeze BERT layers
+            for param in self.bert.parameters():
+                param.requires_grad = False
         
         self.text_fc = nn.Sequential(
             nn.Linear(768, 256),
@@ -52,9 +60,17 @@ class MultimodalFakeNewsClassifier(nn.Module):
         
         # Image branch (ResNet50)
         resnet = models.resnet50(weights='IMAGENET1K_V2')
-        # Freeze ResNet layers (optional - set to False to fine-tune)
-        for param in resnet.parameters():
-            param.requires_grad = False
+        
+        if fine_tune:
+            # Unfreeze last block of ResNet
+            for param in resnet.parameters():
+                param.requires_grad = False
+            for param in resnet.layer4.parameters():
+                param.requires_grad = True
+        else:
+            # Freeze ResNet layers
+            for param in resnet.parameters():
+                param.requires_grad = False
         
         self.image_backbone = nn.Sequential(*list(resnet.children())[:-1])
         self.image_fc = nn.Sequential(
@@ -157,7 +173,7 @@ def validate(model, val_loader, criterion, device):
 
 
 def train_model(csv_path, images_dir, num_epochs=10, batch_size=16, 
-                learning_rate=1e-4, val_split=0.2, test_split=0.1):
+                learning_rate=1e-4, val_split=0.2, test_split=0.1, fine_tune=False):
     """Main training function."""
     import os
     
@@ -187,7 +203,7 @@ def train_model(csv_path, images_dir, num_epochs=10, batch_size=16,
     
     # Initialize model
     print("\nInitializing model...")
-    model = MultimodalFakeNewsClassifier(num_classes=2)
+    model = MultimodalFakeNewsClassifier(num_classes=2, fine_tune=fine_tune)
     model = model.to(device)
     
     # Count parameters
@@ -341,6 +357,8 @@ if __name__ == "__main__":
                         help='Validation split ratio')
     parser.add_argument('--test_split', type=float, default=0.1,
                         help='Test split ratio')
+    parser.add_argument('--fine_tune', action='store_true',
+                        help='Unfreeze last layers of BERT and ResNet for fine-tuning')
     
     args = parser.parse_args()
     
@@ -355,6 +373,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         learning_rate=args.lr,
         val_split=args.val_split,
-        test_split=args.test_split
+        test_split=args.test_split,
+        fine_tune=args.fine_tune
     )
 

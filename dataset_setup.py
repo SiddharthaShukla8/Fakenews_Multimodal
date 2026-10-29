@@ -28,7 +28,7 @@ class FakedditDataset(Dataset):
     """
     
     def __init__(self, csv_path, images_dir, text_field='clean_title', 
-                 label_field='2_way_label', max_length=80):
+                 label_field='2_way_label', max_length=128):
         """
         Initialize the dataset.
         
@@ -50,8 +50,13 @@ class FakedditDataset(Dataset):
         
         # Image transforms (matching preprocessing)
         # Note: Images are already resized to 256x256 and converted to RGB
+        # Image transforms (matching preprocessing)
+        # Note: Images are already resized to 256x256 and converted to RGB
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(10),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                               std=[0.229, 0.224, 0.225])  # ImageNet stats

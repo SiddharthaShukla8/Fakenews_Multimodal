@@ -29,7 +29,7 @@ IMAGE_SIZE = (256, 256)
 IMAGE_DIR = "images"
 PROCESSED_DATA_DIR = "processed_data"
 DATASET_NAME = "vanshikavmittal/fakeddit-dataset"
-MAX_TEXT_LENGTH = 80  # For BERT tokenization
+MAX_TEXT_LENGTH = 128  # For BERT tokenization
 
 
 def setup_directories():
@@ -205,7 +205,9 @@ def download_and_validate_images(df):
     failed_downloads = 0
     invalid_urls = 0
     
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Downloading images"):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    def process_row(row):
         image_url = row['image_url']
         image_id = row['id']
         image_path = os.path.join(IMAGE_DIR, f"{image_id}.jpg")
@@ -213,40 +215,44 @@ def download_and_validate_images(df):
         # Skip if already downloaded
         if os.path.exists(image_path):
             try:
-                # Quick validation
                 img = Image.open(image_path)
                 img.verify()
-                valid_indices.append(idx)
-                continue
+                return row.name, True
             except:
-                # File exists but corrupted, re-download
                 os.remove(image_path)
         
         # Check URL validity
         if not is_valid_image_url(image_url):
-            invalid_urls += 1
-            continue
+            return row.name, False
         
         # Download image
         if download_image(image_url, image_path):
-            # Verify downloaded image
             try:
                 img = Image.open(image_path)
                 img.verify()
-                valid_indices.append(idx)
+                return row.name, True
             except:
-                # Corrupted image, remove it
                 if os.path.exists(image_path):
                     os.remove(image_path)
+                return row.name, False
+        return row.name, False
+
+    print(f"Downloading images with parallel processing (max_workers=10)...")
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(process_row, row) for _, row in df.iterrows()]
+        
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Downloading images"):
+            idx, success = future.result()
+            if success:
+                valid_indices.append(idx)
+            else:
                 failed_downloads += 1
-        else:
-            failed_downloads += 1
     
     print(f"\nDownload Statistics:")
     print(f"  Total rows: {len(df)}")
     print(f"  Successful downloads: {len(valid_indices)}")
     print(f"  Failed downloads: {failed_downloads}")
-    print(f"  Invalid URLs: {invalid_urls}")
+    # print(f"  Invalid URLs: {invalid_urls}") # invalid_urls logic moved inside function, simplified reporting
     
     # Filter dataframe to only valid images
     df_valid = df.loc[valid_indices].copy().reset_index(drop=True)
